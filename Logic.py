@@ -1,4 +1,5 @@
 from Ratios import units, blocks, drillables, Turret, Drill, Production, Factory, Reconstructor
+import math
 
 def get_block(name, default=None):
 	# Iterate through each category in the blocks dictionary
@@ -63,6 +64,7 @@ def get_block(name, default=None):
 	# Return the default value if the block is not found
 	return default
 
+# get_unit will be depreciated once the UI is more complete; only has one usage that can be supplanted with unit.get(name) and referencing that.
 def get_unit(name):
 	# Iterate through the units dictionary
 	for unitName, unitData in units.items():
@@ -159,3 +161,50 @@ def find_producers(material):
 							break
 
 	return producers
+
+def unit_math(name):
+	unit = units.get(name)
+	factoryList = []
+	for i in range(unit.tier):
+		if unit.tier > 1:
+			factoryBlock = blocks.get("reconstructors", {})[find_upgrade_path(unit.name)["upgrades"]["reconstructor"]]
+		else:
+			factoryBlock = blocks.get("unit factories", {})[find_upgrade_path(unit.name)["produced_by"]]
+		factoryList.append(factoryBlock.name)
+		if unit.tier == 1:
+			break
+		unit = units.get(find_upgrade_path(unit.name)["upgrades"]["previous_unit"])
+	rates = {"Power": 0}
+	prodTime = 0
+	for i in range(len(factoryList)):
+		if "reconstructor" in factoryList[i].lower():
+			factory = blocks.get("reconstructors", {})[factoryList[i]]
+			dict1 = {
+				"Cost": factory.cost,
+				"Power": factory.power,
+				"Production time": factory.time
+			}
+		else:
+			factory = blocks.get("unit factories", {})[factoryList[i]]
+			dict1 = {
+				"Cost": factory.unit_recipes[unit.name]["Input"],
+				"Power": factory.power,
+				"Production time": factory.unit_recipes[unit.name]["time"]
+			}
+		for key, value in dict1["Cost"].items():
+			if key in rates:
+				rates[key] += value
+			else:
+				rates[key] = value
+		rates["Power"] += dict1["Power"]
+		prodTime = dict1["Production time"] if dict1["Production time"] > prodTime else prodTime
+	for key, value in rates.items():
+		if key != "Power" and key != "Cryofluid":
+			rates[key] = math.ceil(100*value/prodTime)/100 # Convert item requirements to items/sec
+	rates["Output"] = math.ceil(6000/prodTime)/100 # Units/min
+	return rates
+
+print(find_upgrade_path("Omura"))
+print(find_upgrade_path("Risso"))
+print(unit_math("Omura"))
+print(blocks.get("turrets", {})["Duo"].reloadTime)
