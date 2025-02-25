@@ -203,8 +203,3 @@ def unit_math(name):
 			rates[key] = math.ceil(100*value/prodTime)/100 # Convert item requirements to items/sec
 	rates["Output"] = math.ceil(6000/prodTime)/100 # Units/min
 	return rates
-
-print(find_upgrade_path("Omura"))
-print(find_upgrade_path("Risso"))
-print(unit_math("Omura"))
-print(blocks.get("turrets", {})["Duo"].reloadTime)
