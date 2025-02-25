@@ -184,10 +184,14 @@ blocks = {
         })
     },
     "reconstructors": {
-        "Additive reconstructor": Reconstructor("Additive reconstructor", tier=2, power=180, cost={"Silicon": 40, "Graphite": 40}, buildTime=10),
-        "Multiplicative reconstructor": Reconstructor("Multiplicative reconstructor", tier=3, power=360, cost={"Silicon": 130, "Titanium": 80, "Metaglass": 40}, buildTime=30),
-        "Exponential reconstructor": Reconstructor("Exponential reconstructor", tier=4, power=780, cost={"Silicon": 850, "Titanium": 750, "Plastanium": 650, "Cryofluid": 60}, buildTime=90),
-        "Tetrative reconstructor": Reconstructor("Tetrative reconstructor", tier=5, power=1500, cost={"Silicon": 1000,"Plastanium": 600, "Surge Alloy": 500, "Phase Fabric": 350, "Cryofluid": 180}, buildTime=240)
+        "Additive reconstructor": Reconstructor("Additive reconstructor", 2, 180, {"Silicon": 40, "Graphite": 40}, 10),
+        "Multiplicative reconstructor": Reconstructor("Multiplicative reconstructor", 3, 360,
+                                                      {"Silicon": 130, "Titanium": 80, "Metaglass": 40}, 30),
+        "Exponential reconstructor": Reconstructor("Exponential reconstructor", 4, 780,
+                                                   {"Silicon": 850, "Titanium": 750, "Plastanium": 650, "Cryofluid": 60}, 90),
+        "Tetrative reconstructor": Reconstructor("Tetrative reconstructor", 5, 1500,
+                                                 {"Silicon": 1000,"Plastanium": 600, "Surge Alloy": 500, "Phase Fabric": 350, "Cryofluid": 180},
+                                                 240)
     },
     "other": {
         "Water extractor": Production("Water extractor",
