@@ -182,6 +182,6 @@ def unit_math(name):
 		prodTime = dict1["Production time"] if dict1["Production time"] > prodTime else prodTime
 	for key, value in rates.items():
 		if key != "Power" and key != "Cryofluid":
-			rates[key] = math.ceil(100*value/prodTime)/100 # Convert item requirements to items/sec
-	rates["Output"] = math.ceil(6000/prodTime)/100 # Units/min
+			rates[key] = value/prodTime # Convert item requirements to items/sec
+	rates["Output"] = prodTime/60 # Units/min
 	return rates
