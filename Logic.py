@@ -64,24 +64,6 @@ def get_block(name, default=None):
 	# Return the default value if the block is not found
 	return default
 
-# get_unit will be depreciated once the UI is more complete; only has one usage that can be supplanted with unit.get(name) and referencing that.
-def get_unit(name):
-	# Iterate through the units dictionary
-	for unitName, unitData in units.items():
-		# Check if the unit name matches
-		if unitName == name:
-			# Return the unit data as a dictionary
-			unit_info = {
-				"name": unitData.name,
-				"tier": unitData.tier,
-				"type": unitData.unit_type,
-				"colour": unitData.colour,  # Include the colour attribute
-			}
-			# Add unit_type only for tier 1 units
-			if unitData.tier == 1:
-				unit_info["unit_type"] = unitData.unit_type
-			return unit_info
-
 def find_upgrade_path(unitName):
 	# Get the unit data
 	unitData = units.get(unitName)
