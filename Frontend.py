@@ -1,25 +1,21 @@
-from Logic import get_block, get_unit, find_producers, find_upgrade_path
+from Logic import get_block, find_producers, unit_math
+from Ratios import units
 import tkinter as tk
 from tkinter import font
 #%% TODO, V2:
 # Make logic
+#%% TODO, V3:
 # Implement recursive production finding
 # Make buttons for ^^^
-#%% TODO, V3:
+#%% TODO, V4:
 # Add Erekir
 
 #%% UI creation
 root = tk.Tk()
 root.title("Serpulo Ratio Calculator")
 root.configure(bg="#202020")
-custom_font = font.Font(family="fontello", size=11)
+custom_font = font.Font(family="fontello", size=11) # In theory, should make tkinter use mindustry font.
 root.option_add("*Font", custom_font)
-
-prompt = tk.Label(root, text="What do you want to make?")
-prompt.grid(row=0, column=0, columnspan=5)
-prompt.configure(bg="#202020", fg="#ffffff")
-line = tk.Frame(root, height=3, bg="#808080")
-line.grid(row=1, columnspan=5, sticky="ew")
 
 # Simple routines used at all levels of the UI
 class UiTools:
@@ -29,29 +25,31 @@ class UiTools:
 
     @staticmethod
     def clear_grid():
-        """Clears widgets from the grid except the first two rows."""
-        for widget in root.grid_slaves():
-            if int(widget.grid_info()["row"]) > 1:
-                widget.destroy()
+        UiTools.clear_full()
+        prompt = tk.Label(root, text="What do you want to make?")
+        prompt.grid(row=0, column=0, columnspan=5)
+        prompt.configure(bg="#202020", fg="#ffffff")
+        line = tk.Frame(root, height=3, bg="#808080")
+        line.grid(row=1, columnspan=5, sticky="ew")
 
     @staticmethod
     def clear_full():
-        """Clears widgets from the grid except the first two rows."""
+        # Clears widgets from the grid except the first two rows.
         for widget in root.grid_slaves():
             widget.destroy()
 
     @staticmethod
     def on_enter(e):
-        """Handles mouse enter event for button highlighting."""
+        # Handles mouse enter event for button highlighting.
         e.widget['highlightbackground'] = "#fcd47c"
 
     @staticmethod
     def on_leave(e):
-        """Handles mouse leave event for button highlighting."""
+        # Handles mouse leave event for button highlighting.
         e.widget['highlightbackground'] = "#202020"
 
     def create_grid(self, button_texts, rows, cols, empty_cells=None):
-        """Creates a grid of buttons with specified empty cells and a back button."""
+        # Creates a grid of buttons with specified empty cells and a back button.
         empty_cells = empty_cells or []
         frame = tk.Frame(self.root, bg="#202020")
         frame.grid(row=2, column=0, columnspan=cols, padx=5, pady=5)
@@ -89,6 +87,89 @@ class UiTools:
         back_button.bind("<Enter>", UiTools.on_enter)
         back_button.bind("<Leave>", UiTools.on_leave)
 
+class BaseComponents:
+    # A reusable base class for UI components using grid layout.
+    def __init__(self, parent):
+        self.parent = parent  # Store the parent widget
+
+    def grid(self, row, column, **kwargs):
+        # Helper method to place all child widgets in a grid layout.
+        for widget in vars(self).values():
+            if isinstance(widget, tk.Widget):
+                widget.grid(row=row, column=column, **kwargs)
+
+class FancySpinbox:
+    # A Spinbox that enforces value limits but does not perform operations itself.
+    def __init__(self, parent, row, column, minVal=0.0, maxVal=100.0, width=5):
+        self.parent = parent
+        self.minVal = minVal
+        self.maxVal = maxVal
+        self.width = width
+
+        # StringVar to hold the Spinbox value
+        self.spinboxVar = tk.StringVar(value=str(self.minVal))
+
+        # Create the Spinbox
+        self.spinbox = tk.Spinbox(
+            parent, from_=self.minVal, to=self.maxVal, textvariable=self.spinboxVar, width=width,
+            format="%.2f")
+        self.spinbox.grid(row=row, column=column, padx=5, pady=5, sticky="ew")
+        self.spinbox.configure(bg="#202020", fg="#ffffff",
+                               borderwidth=0, highlightthickness=0,
+                               buttonbackground="#202020")
+
+        # Add trace to check input
+        self.spinboxVar.trace_add("write", self.validate_input)
+
+    def validate_input(self, *args):
+        # Schedules a correction to ensure the input stays valid.
+        self.parent.after(1, self.correct_value)  # Delay correction to allow Tkinter update
+
+    def correct_value(self):
+        # Ensures input is properly formatted and within bounds.
+        try:
+            value = float(self.spinboxVar.get())
+            if value > self.maxVal:
+                self.spinboxVar.set(str(self.maxVal))  # Set to max if too large
+            elif value < self.minVal:
+                self.spinboxVar.set(str(self.minVal))  # Set to min if too small
+        except ValueError:
+            if self.spinboxVar.get() == "":
+                return  # Allow temporary empty input
+            self.spinboxVar.set(str(self.minVal))  # Reset on invalid input
+
+    def get_value(self):
+        # Returns the current value of the Spinbox as an integer.
+        try:
+            return float(self.spinboxVar.get())
+        except ValueError:
+            return self.minVal  # Return min if invalid
+
+class OperationLabel(BaseComponents):
+    # A label that updates dynamically based on a given Spinbox value.
+    def __init__(self, parent, row, column, spinbox, operation, labelText):
+        super().__init__(parent)
+        self.spinbox = spinbox  # Reference to the spinbox instance
+        self.operation = operation  # Function to apply to spinbox value
+        self.labelText = labelText
+
+        # Create label for static text (label_text)
+        self.staticLabel = tk.Label(parent, text=self.labelText)
+        self.staticLabel.grid(row=row, column=column, padx=5, pady=5)
+        self.staticLabel.configure(bg="#202020", fg="#ffffff",)
+
+        # Create label for dynamic result
+        self.resultLabel = tk.Label(parent, text=f"{self.operation(self.spinbox.get_value()):.2f}")
+        self.resultLabel.grid(row=row, column=column + 1, padx=5, pady=5)
+        self.resultLabel.configure(bg="#202020", fg="#ffffff",)
+
+        # Update the dynamic result when spinbox value changes
+        self.spinbox.spinboxVar.trace_add("write", self.update_label)
+
+    def update_label(self, *args):
+        # Updates the label with the dynamic result based on the spinbox value.
+        self.resultLabel.config(text=f"{self.operation(self.spinbox.get_value()):.2f}")
+
 def reformat_entry(text):
     text = text.lower()
     if "_" in text:
@@ -103,7 +184,6 @@ def reformat_entry(text):
         else:
             text = textPieces[i]
     return text
-
 # Main selection menu for Serpulo
 def main_menu():
     UiTools.clear_grid()
@@ -133,7 +213,7 @@ def main_menu():
         button.bind("<Enter>", UiTools.on_enter)
         button.bind("<Leave>", UiTools.on_leave)
 # Serpulo turret selection menu
-def turretsSelection():
+def turret_selection():
     UiTools.clear_grid()
     frame = tk.Frame(root)
     frame.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
@@ -162,7 +242,7 @@ def turretsSelection():
         button.bind("<Leave>", UiTools.on_leave)
     UiTools.back_button(root,3,4,lambda: main_menu())
 # Serpulo power selection menu
-def powerSelection():
+def power_selection():
     UiTools.clear_grid()
     frame = tk.Frame(root)
     frame.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
@@ -193,7 +273,7 @@ def powerSelection():
         button.bind("<Leave>", UiTools.on_leave)
     UiTools.back_button(root,3,4,lambda: main_menu())
 # Serpulo unit selection menu
-def unitsSelection():
+def units_selection():
     UiTools.clear_grid()
     frame = tk.Frame(root)
     frame.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
@@ -222,7 +302,7 @@ def unitsSelection():
         button.bind("<Leave>", UiTools.on_leave)
     UiTools.back_button(root,3,4,lambda: main_menu())
 # Serpulo material selection menu
-def materialsSelection():
+def materials_selection():
     UiTools.clear_grid()
     frame = tk.Frame(root)
     frame.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
@@ -251,7 +331,7 @@ def materialsSelection():
         button.bind("<Leave>", UiTools.on_leave)
     UiTools.back_button(root, 3, 4, lambda: main_menu())
 
-def turretsWindow(name):
+def turrets_window(name):
     UiTools.clear_full()
     block = get_block(name)
     # Extract relevant information
@@ -268,9 +348,9 @@ def turretsWindow(name):
     turret = tk.Label(root, text=text)
     turret.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
     turret.configure(bg="#202020", fg="#ffffff")
-    UiTools.back_button(root,3,4,lambda: turretsSelection())
+    UiTools.back_button(root, 3, 4, lambda: turret_selection())
 
-def powerWindow(name):
+def power_window(name):
     UiTools.clear_full()
     block = get_block(name)
     if isinstance(block['recipes'], dict):  # Check if it's a dictionary
@@ -290,27 +370,32 @@ def powerWindow(name):
     powerElement = tk.Label(root, text=text)
     powerElement.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
     powerElement.configure(bg="#202020", fg="#ffffff")
-    UiTools.back_button(root,3,4,lambda: powerSelection())
+    UiTools.back_button(root, 3, 4, lambda: power_selection())
 
-def unitsWindow(name):
+def units_window(name):
     UiTools.clear_full()
-    unit = get_unit(name)
-    print(unit)
-    windowTitle = tk.Label(root, text=unit['name'])
-    windowTitle.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
+    unit = units.get(name)
+    windowTitle = tk.Label(root, text=unit.name)
+    windowTitle.grid(row=0, column=0, padx=5, pady=5)
     windowTitle.configure(bg="#202020", fg="#ffffff")
-    entryPrompt = tk.Label(root, text="How many to produce/min:")
+    windowImage = tk.Label(root, image=images[unit.name.lower()])
+    windowImage.grid(row=0, column=1, padx=5, pady=5)
+    windowImage.configure(bg="#202020")
+    entryPrompt = tk.Label(root, text="How many to\nproduce/min:")
     entryPrompt.grid(row=1, column=0, padx=5, pady=5)
     entryPrompt.configure(bg="#202020", fg="#ffffff")
-    entrySpinBox = tk.Spinbox(root, from_=0, to=100, width=3)
-    entrySpinBox.grid(row=1, column=1, padx=5, pady=5)
-    entrySpinBox.configure(bg="#202020", fg="#ffffff",
-                           borderwidth=0, highlightthickness=0,
-                           buttonbackground="#202020", buttonuprelief="flat",
-                           buttondownrelief="flat")
-    UiTools.back_button(root,3,4,lambda: unitsSelection())
+    entrySpinBox = FancySpinbox(root,1,1,1,1000)
+    hline = tk.Frame(root, height=3, bg="#404040")
+    hline.grid(row=2, column=0, columnspan=5, sticky="ew")
+    for i, (key, value) in enumerate(unit_math(name).items()):
+        if key == "Output":
+            break
+        OperationLabel(root, i+3, 0, entrySpinBox, lambda x, value=value: x * value, key+"/sec")
+        pass
+    OperationLabel(root, i+3, 0, entrySpinBox, lambda x, value=unit_math(name)["Output"]: x * value, "Factories\nrequired")
+    UiTools.back_button(root, i + 4, 4, lambda: units_selection())
 
-def materialsWindow(name):
+def materials_window(name):
     UiTools.clear_full()
     producers = find_producers(name)
     windowTitle = tk.Label(root, text=name)
@@ -342,7 +427,7 @@ def materialsWindow(name):
         producerButton.grid(row=4+i, column=1, padx=5, pady=5)
         producerButton.bind("<Enter>", UiTools.on_enter)
         producerButton.bind("<Leave>", UiTools.on_leave)
-    UiTools.back_button(root,5+len(producers),4,lambda: materialsSelection())
+    UiTools.back_button(root, 5 + len(producers), 4, lambda: materials_selection())
 
 #%% Image manipulation - Explanation
 # Apart from the last two lines, this entire section is importing images into variables tkinter can work with, then pairing each of the images with
@@ -465,97 +550,97 @@ images = {
 }
 
 mainMenuButtons = [
-    (images["bullets"], "Turrets", turretsSelection),
-    (images["power"], "Power", powerSelection),
-    (images["unitsIcon"], "Units", unitsSelection),
-    (images["items"], "Resources", materialsSelection),
+    (images["bullets"], "Turrets", turret_selection),
+    (images["power"], "Power", power_selection),
+    (images["unitsIcon"], "Units", units_selection),
+    (images["items"], "Resources", materials_selection),
 ]
 turretsMenuButtons = [
-    ("Duo", images["duo"], lambda: turretsWindow("Duo")),
-    ("Scatter", images["scatter"], lambda: turretsWindow("Scatter")),
-    ("Scorch", images["scorch"], lambda: turretsWindow("Scorch")),
-    ("Hail", images["hail"], lambda: turretsWindow("Hail")),
-    ("Wave", images["wave"], lambda: turretsWindow("Wave")),
-    ("Lancer", images["lancer"], lambda: turretsWindow("Lancer")),
-    ("Arc", images["arc"], lambda: turretsWindow("Arc")),
-    ("Parallax", images["parallax"], lambda: turretsWindow("Parallax")),
-    ("Swarmer", images["swarmer"], lambda: turretsWindow("Swarmer")),
-    ("Salvo", images["salvo"], lambda: turretsWindow("Salvo")),
-    ("Segment", images["segment"], lambda: turretsWindow("Segment")),
-    ("Tsunami", images["tsunami"], lambda: turretsWindow("Tsunami")),
-    ("Fuse", images["fuse"], lambda: turretsWindow("Fuse")),
-    ("Ripple", images["ripple"], lambda: turretsWindow("Ripple")),
-    ("Cyclone", images["cyclone"], lambda: turretsWindow("Cyclone")),
-    ("Foreshadow", images["foreshadow"], lambda: turretsWindow("Foreshadow")),
-    ("Spectre", images["spectre"], lambda: turretsWindow("Spectre")),
-    ("Meltdown", images["meltdown"], lambda: turretsWindow("Meltdown"))
+    ("Duo", images["duo"], lambda: turrets_window("Duo")),
+    ("Scatter", images["scatter"], lambda: turrets_window("Scatter")),
+    ("Scorch", images["scorch"], lambda: turrets_window("Scorch")),
+    ("Hail", images["hail"], lambda: turrets_window("Hail")),
+    ("Wave", images["wave"], lambda: turrets_window("Wave")),
+    ("Lancer", images["lancer"], lambda: turrets_window("Lancer")),
+    ("Arc", images["arc"], lambda: turrets_window("Arc")),
+    ("Parallax", images["parallax"], lambda: turrets_window("Parallax")),
+    ("Swarmer", images["swarmer"], lambda: turrets_window("Swarmer")),
+    ("Salvo", images["salvo"], lambda: turrets_window("Salvo")),
+    ("Segment", images["segment"], lambda: turrets_window("Segment")),
+    ("Tsunami", images["tsunami"], lambda: turrets_window("Tsunami")),
+    ("Fuse", images["fuse"], lambda: turrets_window("Fuse")),
+    ("Ripple", images["ripple"], lambda: turrets_window("Ripple")),
+    ("Cyclone", images["cyclone"], lambda: turrets_window("Cyclone")),
+    ("Foreshadow", images["foreshadow"], lambda: turrets_window("Foreshadow")),
+    ("Spectre", images["spectre"], lambda: turrets_window("Spectre")),
+    ("Meltdown", images["meltdown"], lambda: turrets_window("Meltdown"))
 ]
 powerMenuButtons = [
-    ("Combustion generator", images["combustionGenerator"], lambda: powerWindow("Combustion generator")),
-    ("Steam generator", images["steamGenerator"], lambda: powerWindow("Steam generator")),
-    ("Differential generator", images["differentialGenerator"], lambda: powerWindow("Differential generator")),
-    ("RTG generator", images["rtgGenerator"], lambda: powerWindow("RTG generator")),
-    ("Thorium reactor", images["thoriumReactor"], lambda: powerWindow("Thorium reactor")),
-    ("Impact reactor", images["impactReactor"], lambda: powerWindow("Impact reactor")),
+    ("Combustion generator", images["combustionGenerator"], lambda: power_window("Combustion generator")),
+    ("Steam generator", images["steamGenerator"], lambda: power_window("Steam generator")),
+    ("Differential generator", images["differentialGenerator"], lambda: power_window("Differential generator")),
+    ("RTG generator", images["rtgGenerator"], lambda: power_window("RTG generator")),
+    ("Thorium reactor", images["thoriumReactor"], lambda: power_window("Thorium reactor")),
+    ("Impact reactor", images["impactReactor"], lambda: power_window("Impact reactor")),
 ]
 unitsMenuButtons = [
-    ("Dagger", images["dagger"], lambda: unitsWindow("Dagger")),
-    ("Mace", images["mace"], lambda: unitsWindow("Mace")),
-    ("Fortress", images["fortress"], lambda: unitsWindow("Fortress")),
-    ("Scepter", images["scepter"], lambda: unitsWindow("Scepter")),
-    ("Reign", images["reign"], lambda: unitsWindow("Reign")),
-    ("Nova", images["nova"], lambda: unitsWindow("Nova")),
-    ("Pulsar", images["pulsar"], lambda: unitsWindow("Pulsar")),
-    ("Quasar", images["quasar"], lambda: unitsWindow("Quasar")),
-    ("Vela", images["vela"], lambda: unitsWindow("Vela")),
-    ("Corvus", images["corvus"], lambda: unitsWindow("Corvus")),
-    ("Crawler", images["crawler"], lambda: unitsWindow("Crawler")),
-    ("Atrax", images["atrax"], lambda: unitsWindow("Atrax")),
-    ("Spiroct", images["spiroct"], lambda: unitsWindow("Spiroct")),
-    ("Arkyid", images["arkyid"], lambda: unitsWindow("Arkyid")),
-    ("Toxopid", images["toxopid"], lambda: unitsWindow("Toxopid")),
-    ("Flare", images["flare"], lambda: unitsWindow("Flare")),
-    ("Horizon", images["horizon"], lambda: unitsWindow("Horizon")),
-    ("Zenith", images["zenith"], lambda: unitsWindow("Zenith")),
-    ("Antumbra", images["antumbra"], lambda: unitsWindow("Antumbra")),
-    ("Eclipse", images["eclipse"], lambda: unitsWindow("Eclipse")),
-    ("Mono", images["mono"], lambda: unitsWindow("Mono")),
-    ("Poly", images["poly"], lambda: unitsWindow("Poly")),
-    ("Mega", images["mega"], lambda: unitsWindow("Mega")),
-    ("Quad", images["quad"], lambda: unitsWindow("Quad")),
-    ("Oct", images["oct"], lambda: unitsWindow("Oct")),
-    ("Risso", images["risso"], lambda: unitsWindow("Risso")),
-    ("Minke", images["minke"], lambda: unitsWindow("Minke")),
-    ("Bryde", images["bryde"], lambda: unitsWindow("Bryde")),
-    ("Sei", images["sei"], lambda: unitsWindow("Sei")),
-    ("Omura", images["omura"], lambda: unitsWindow("Omura")),
-    ("Retusa", images["retusa"], lambda: unitsWindow("Retusa")),
-    ("Oxynoe", images["oxynoe"], lambda: unitsWindow("Oxynoe")),
-    ("Cyerce", images["cyerce"], lambda: unitsWindow("Cyerce")),
-    ("Aegires", images["aegires"], lambda: unitsWindow("Aegires")),
-    ("Navanax", images["navanax"], lambda: unitsWindow("Navanax")),
+    ("Dagger", images["dagger"], lambda: units_window("Dagger")),
+    ("Mace", images["mace"], lambda: units_window("Mace")),
+    ("Fortress", images["fortress"], lambda: units_window("Fortress")),
+    ("Scepter", images["scepter"], lambda: units_window("Scepter")),
+    ("Reign", images["reign"], lambda: units_window("Reign")),
+    ("Nova", images["nova"], lambda: units_window("Nova")),
+    ("Pulsar", images["pulsar"], lambda: units_window("Pulsar")),
+    ("Quasar", images["quasar"], lambda: units_window("Quasar")),
+    ("Vela", images["vela"], lambda: units_window("Vela")),
+    ("Corvus", images["corvus"], lambda: units_window("Corvus")),
+    ("Crawler", images["crawler"], lambda: units_window("Crawler")),
+    ("Atrax", images["atrax"], lambda: units_window("Atrax")),
+    ("Spiroct", images["spiroct"], lambda: units_window("Spiroct")),
+    ("Arkyid", images["arkyid"], lambda: units_window("Arkyid")),
+    ("Toxopid", images["toxopid"], lambda: units_window("Toxopid")),
+    ("Flare", images["flare"], lambda: units_window("Flare")),
+    ("Horizon", images["horizon"], lambda: units_window("Horizon")),
+    ("Zenith", images["zenith"], lambda: units_window("Zenith")),
+    ("Antumbra", images["antumbra"], lambda: units_window("Antumbra")),
+    ("Eclipse", images["eclipse"], lambda: units_window("Eclipse")),
+    ("Mono", images["mono"], lambda: units_window("Mono")),
+    ("Poly", images["poly"], lambda: units_window("Poly")),
+    ("Mega", images["mega"], lambda: units_window("Mega")),
+    ("Quad", images["quad"], lambda: units_window("Quad")),
+    ("Oct", images["oct"], lambda: units_window("Oct")),
+    ("Risso", images["risso"], lambda: units_window("Risso")),
+    ("Minke", images["minke"], lambda: units_window("Minke")),
+    ("Bryde", images["bryde"], lambda: units_window("Bryde")),
+    ("Sei", images["sei"], lambda: units_window("Sei")),
+    ("Omura", images["omura"], lambda: units_window("Omura")),
+    ("Retusa", images["retusa"], lambda: units_window("Retusa")),
+    ("Oxynoe", images["oxynoe"], lambda: units_window("Oxynoe")),
+    ("Cyerce", images["cyerce"], lambda: units_window("Cyerce")),
+    ("Aegires", images["aegires"], lambda: units_window("Aegires")),
+    ("Navanax", images["navanax"], lambda: units_window("Navanax")),
 ]
 materialsMenuButtons = [
-    ("Copper", images["copper"], lambda: materialsWindow("Copper")),
-    ("Lead", images["lead"], lambda: materialsWindow("Lead")),
-    ("Glass", images["glass"], lambda: materialsWindow("Metaglass")),
-    ("Graphite", images["graphite"], lambda: materialsWindow("Graphite")),
-    ("Sand", images["sand"], lambda: materialsWindow("Sand")),
-    ("Coal", images["coal"], lambda: materialsWindow("Coal")),
-    ("Titanium", images["titanium"], lambda: materialsWindow("Titanium")),
-    ("Thorium", images["thorium"], lambda: materialsWindow("Thorium")),
-    ("Scrap", images["scrap"], lambda: materialsWindow("Scrap")),
-    ("Silicon", images["silicon"], lambda: materialsWindow("Silicon")),
-    ("Plastanium", images["plast"], lambda: materialsWindow("Plastanium")),
-    ("Phase", images["phase"], lambda: materialsWindow("Phase fabric")),
-    ("Surge", images["surge"], lambda: materialsWindow("Surge alloy")),
-    ("Spore Pods", images["pods"], lambda: materialsWindow("Spore pod")),
-    ("Blast", images["blast"], lambda: materialsWindow("Blast compound")),
-    ("Pyratite", images["pyra"], lambda: materialsWindow("Pyratite")),
-    ("Water", images["water"], lambda: materialsWindow("Water")),
-    ("Cryofluid", images["cryo"], lambda: materialsWindow("Cryofluid")),
-    ("Slag", images["slag"], lambda: materialsWindow("Slag")),
-    ("Oil", images["oil"], lambda: materialsWindow("Oil")),
+    ("Copper", images["copper"], lambda: materials_window("Copper")),
+    ("Lead", images["lead"], lambda: materials_window("Lead")),
+    ("Glass", images["glass"], lambda: materials_window("Metaglass")),
+    ("Graphite", images["graphite"], lambda: materials_window("Graphite")),
+    ("Sand", images["sand"], lambda: materials_window("Sand")),
+    ("Coal", images["coal"], lambda: materials_window("Coal")),
+    ("Titanium", images["titanium"], lambda: materials_window("Titanium")),
+    ("Thorium", images["thorium"], lambda: materials_window("Thorium")),
+    ("Scrap", images["scrap"], lambda: materials_window("Scrap")),
+    ("Silicon", images["silicon"], lambda: materials_window("Silicon")),
+    ("Plastanium", images["plast"], lambda: materials_window("Plastanium")),
+    ("Phase", images["phase"], lambda: materials_window("Phase fabric")),
+    ("Surge", images["surge"], lambda: materials_window("Surge alloy")),
+    ("Spore Pods", images["pods"], lambda: materials_window("Spore pod")),
+    ("Blast", images["blast"], lambda: materials_window("Blast compound")),
+    ("Pyratite", images["pyra"], lambda: materials_window("Pyratite")),
+    ("Water", images["water"], lambda: materials_window("Water")),
+    ("Cryofluid", images["cryo"], lambda: materials_window("Cryofluid")),
+    ("Slag", images["slag"], lambda: materials_window("Slag")),
+    ("Oil", images["oil"], lambda: materials_window("Oil")),
 ]
 
 main_menu()
