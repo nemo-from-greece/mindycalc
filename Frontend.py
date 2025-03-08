@@ -373,21 +373,38 @@ def power_window(name):
                 if row_spinvar is not var:
                     row_spinvar.set(new_value)
 
+        def handle_item_input(row):
+            column = 0 if selection.get_state() == "power" else 3  # Choose column dynamically
+
+            if row < len(spinbox_refs[column]):  # Ensure row index is valid
+                value = float(spinbox_refs[column][row].get())  # Get numeric value
+                if column:
+                    rate = value * list(ratios[0].values())[0] / ratios[2]
+                else:
+                    rate = value / ratios[1]['Power'] * list(ratios[0].values())[0] / ratios[2]
+                return rate
+            else:
+                print(f"Warning: No data found for row {row} in column 3.")
+
         # Iterate over all recipes and create UI elements dynamically
         for i, ratios in enumerate(recipes):
             print(ratios)
             print(list(ratios[0].keys())[0])
-            imageColumn = 1 if selection.get_state() == "count" else 2
+            print(spinbox_refs)
+            imageColumn = 1 if selection.get_state() == "power" else 2
             fuel_label = tk.Label(inputElements, image=images[list(ratios[0].keys())[0].lower()], bg="#202020", fg="#ffffff")
             fuel_label.grid(row=i, column=imageColumn, padx=5, pady=5)
             fuelButton = UiTools.standard_button(inputElements, i, imageColumn, images[list(ratios[0].keys())[0].lower()], "", 32, 32,
-                                                 command=lambda: materials_selection(list(ratios[0].keys())[0], )) # Grab the current value in
+                                                 command=lambda name=list(ratios[0].keys())[0], row=i: materials_window(name, handle_item_input(row)))
+            #
+            # Grab the
+            # current value in
             # ([row],2). That's generator count. Then multiply by items/sec, and feed to materials_selection().
 
-            if selection.get_state() == "count":
+            if selection.get_state() == "power":
                 # Power is input, Generators are calculated
                 column = 0
-                inputSpinbox = FancySpinbox(inputElements, i, column, width=4)
+                inputSpinbox = FancySpinbox(inputElements, i, column, minVal=0, maxVal=1000*ratios[1]['Power'], width=4)
                 spinVar = inputSpinbox.spinboxVar
                 spinVar.trace_add("write", lambda *args, var=spinVar: sync_spinboxes(var, column))
 
@@ -399,7 +416,7 @@ def power_window(name):
             else:
                 # Generators are input, Power is calculated
                 column = 3
-                inputSpinbox = FancySpinbox(inputElements, i, column, width=4)
+                inputSpinbox = FancySpinbox(inputElements, i, column, minVal=0.0, maxVal=1000, width=4)
                 spinVar = inputSpinbox.spinboxVar
                 spinVar.trace_add("write", lambda *args, var=spinVar: sync_spinboxes(var, column))
 
@@ -428,7 +445,7 @@ def power_window(name):
     rightText = tk.Label(root, text="Generator count")
     rightText.grid(row=2, column=2, padx=5, pady=5)
     rightText.configure(bg="#202020", fg="#ffffff")
-    selection = ToggleButton(root, images['left toggle'], images['right toggle'], "count", "power", command=lambda: update_ui())
+    selection = ToggleButton(root, images['left toggle'], images['right toggle'], "power", "count", command=lambda: update_ui())
     selection.grid(row=2, column=1, padx=5, pady=5)
     recipes = []
     # This might not be needed in the future
@@ -468,21 +485,40 @@ def units_window(name):
     OperationLabel(root, len(unit_math(name)) + 3, 0, entrySpinBox, lambda x, value=unit_math(name)["Output"]: x * value, "Factories\nrequired")
     UiTools.back_button(root, len(unit_math(name)) + 4, 4, lambda: units_selection())
 
+
 def materials_window(name, rate=0.0):
     UiTools.clear_full()
     producers = find_producers(name)
+
+    # Title and Image
     windowTitle = tk.Label(root, text=name, image=images[name.lower()], compound="right")
     windowTitle.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
     windowTitle.configure(bg="#202020", fg="#ffffff")
+
+    # Entry Prompt
     entryPrompt = tk.Label(root, text="How much to\nmake/sec:")
     entryPrompt.grid(row=1, column=0, padx=5, pady=5)
     entryPrompt.configure(bg="#202020", fg="#ffffff")
-    entrySpinBox = FancySpinbox(root,1,1, minVal=1.0,maxVal=10000.0, width=6)
+
+    # Always create the spinbox, but only show it when rate == 0
+    entrySpinBox = FancySpinbox(root, 1, 1, minVal=0.0, maxVal=10000.0, width=6)
+    entrySpinBox.grid(row=1, column=1, padx=5, pady=5)
     entrySpinBox.set_value(rate)
-    tk.Label(root, text=rate, bg='#202020', fg="#ffffff").grid(row=1, column=1, padx=5, pady=5)
+
+    # Create label to display fixed rate if provided
+    rateLabel = tk.Label(root, text=round(rate,2), bg='#202020', fg="#ffffff")
+
+    if rate:
+        rateLabel.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
+
+
+    # Horizontal Line Separator
     UiTools.hline(2)
+
+    # Producer Selection UI
     selectionFrame = tk.Frame(root, bg="#202020")
     selectionFrame.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
     for i, producer in enumerate(producers):
         producer = get_block(producer)
         if "recipes" in producer:
@@ -492,10 +528,12 @@ def materials_window(name, rate=0.0):
             producerAmount = tk.Frame(selectionFrame, bg="#202020")
             producerAmount.grid(row=i, column=1, columnspan=2, padx=5, pady=5)
             drillSpeed = 60 / (producer["base_time"] * (producer["A"] + producer["B"] * drillables[name]))
-            OperationLabel(producerAmount, 0, 0, entrySpinBox, lambda x, value=drillSpeed: math.ceil(x / value),"Tiles to cover:")
+            OperationLabel(producerAmount, 0, 0, entrySpinBox, lambda x, value=drillSpeed: math.ceil(x / value), "Tiles to cover:")
             OperationLabel(producerAmount, 1, 0, entrySpinBox, lambda x, value=producer["size"] ** 2 * drillSpeed: x / value,
                            "Minimum number of drills:")
-        UiTools.standard_button(selectionFrame, i, 0, images[reformat_entry(producer["name"])], "", 32, 32,)
+
+        UiTools.standard_button(selectionFrame, i, 0, images[reformat_entry(producer["name"])], "", 32, 32, )
+
     UiTools.back_button(root, 4 + len(producers), 4, lambda: materials_selection())
 
 #%% Image manipulation - Explanation
