@@ -31,6 +31,7 @@ def get_block(name, default=None):
 						"A": blockData.A,
 						"B": blockData.B,
 						"boost": blockData.boost,
+						"size": blockData.size,
 					}
 				elif isinstance(blockData, Production):
 					return {

@@ -15,13 +15,14 @@ class Turret(Block):
         self.liquidAmmo = liquidAmmo if liquidAmmo else []  # Liquid ammo types and consumption rate. List:[Str]. Fire rate is 60*burst/reloadTime.
 
 class Drill(Block):
-    def __init__(self, name, tier, base_time, A, B, boost=None):
+    def __init__(self, name, tier, base_time, A, B, boost=None, size=2):
         super().__init__(name)
         self.tier = tier  # Drill tier
         self.base_time = base_time  # Base mining time (in frames)
         self.A = A  # Constant A
         self.B = B  # Constant B
         self.boost = boost if boost else {}  # Water consumption for boosting (/sec)
+        self.size = size # Drill size
 
     def mining_speed(self, hardness):
         return 60 / (self.base_time * self.A + self.B * hardness)
@@ -142,10 +143,10 @@ blocks = {
                            power=1020),
     },
     "drills": {
-        "Mechanical drill": Drill("Mechanical drill", tier=2, base_time=600, A=1.000, B=0.088, boost={"Water": 3}),
-        "Pneumatic drill": Drill("Pneumatic drill", tier=3, base_time=400, A=1.000, B=0.132, boost={"Water": 3.6}),
-        "Laser drill": Drill("Laser drill", tier=4, base_time=240, A=1.168, B=0.208, boost={"Water": 4.8}),
-        "Airblast drill": Drill("Airblast drill", tier=5, base_time=240, A=1.168, B=0.208, boost={"Water": 6}),
+        "Mechanical drill": Drill("Mechanical drill", tier=2, base_time=600, A=1.000, B=0.088, boost={"Water": 3}, size=2),
+        "Pneumatic drill": Drill("Pneumatic drill", tier=3, base_time=400, A=1.000, B=0.132, boost={"Water": 3.6}, size=2),
+        "Laser drill": Drill("Laser drill", tier=4, base_time=240, A=1.168, B=0.208, boost={"Water": 4.8}, size=3),
+        "Airblast drill": Drill("Airblast drill", tier=5, base_time=240, A=1.168, B=0.208, boost={"Water": 6}, size=4),
     },
     "unit factories": {
         "Ground factory": Factory("Ground factory", power=72, unit_recipes={
@@ -221,10 +222,10 @@ blocks = {
                                                    {"Input": {"Pyratite": 1}, "Outputs": {"Power": round(60*1.4)}, "Time": 2},
                                                    {"Input": {"Blast Compound": 1}, "Outputs": {"Power": round(60*0.4)}, "Time": 2}]),
         "Steam generator": Production("Steam generator",
-                                      [{"Input": {"Coal": 1}, "Outputs": {"Power": 330}, "Time": 1.5},
-                                              {"Input": {"Spore pod": 1}, "Outputs": {"Power": round(330*1.15,1)}, "Time": 1.5},
-                                              {"Input": {"Pyratite": 1}, "Outputs": {"Power": round(330*1.4)}, "Time": 1.5},
-                                              {"Input": {"Blast Compound": 1}, "Outputs": {"Power": round(330*0.4)}, "Time": 1.5}]),
+                                      [{"Input": {"Coal": 1, "Water": 6}, "Outputs": {"Power": 330}, "Time": 1.5},
+                                              {"Input": {"Spore pod": 1, "Water": 6}, "Outputs": {"Power": round(330*1.15,1)}, "Time": 1.5},
+                                              {"Input": {"Pyratite": 1, "Water": 6}, "Outputs": {"Power": round(330*1.4)}, "Time": 1.5},
+                                              {"Input": {"Blast Compound": 1, "Water": 6}, "Outputs": {"Power": round(330*0.4)}, "Time": 1.5}]),
         "Differential generator": Production("Differential generator",
                                              {"Input": {"Pyratite": 1, "Cryofluid": 6}, "Outputs": {"Power": 1080}, "Time": 22/6}),
         "RTG generator": Production("RTG generator",
@@ -252,21 +253,23 @@ blocks = {
                                     {"Input": {"Copper": 3, "Lead": 4, "Titanium": 2, "Silicon": 3, "Power": 240}, "Outputs": {"Surge alloy": 1},
                                      "Time": 1.25}),
         "Cryofluid mixer": Production("Cryofluid mixer",
-                                      {"Input": {"Titanium": 1, "Water": 12, "Power": 60}, "Outputs": {"Cryofluid": 12}, "Time": 0}),
+                                      {"Input": {"Titanium": 1, "Water": 12, "Power": 60}, "Outputs": {"Cryofluid": 12}, "Time": 2}),
         "Pyratite mixer": Production("Pyratite mixer",
-                                     {"Input": {"Sand": 2, "Lead": 2, "Coal": 1, "Power": 12}, "Outputs": {"Pyratite": 1}, "Time": 0}),
+                                     {"Input": {"Sand": 2, "Lead": 2, "Coal": 1, "Power": 12}, "Outputs": {"Pyratite": 1}, "Time": 4/3}),
         "Blast mixer": Production("Blast mixer",
-                                  {"Input": {"Pyratite": 1, "Spore pod": 1, "Power": 24}, "Outputs": {"Blast compound": 1}, "Time": 0}),
+                                  {"Input": {"Pyratite": 1, "Spore pod": 1, "Power": 24}, "Outputs": {"Blast compound": 1}, "Time": 4/3}),
         "Melter": Production("Melter",
-                             {"Input": {"Scrap": 1, "Power": 60}, "Outputs": {"Slag": 12}, "Time": 0}),
+                             {"Input": {"Scrap": 1, "Power": 60}, "Outputs": {"Slag": 12}, "Time": 1/6}),
         "Separator": Production("Separator",
-                                {"Input": {"Slag": 4.1, "Power": 60}, "Outputs": {"Copper": 0.416, "Lead": 0.25, "Graphite": 0.166, "Titanium": 0.166}, "Time": 0}),
+                                {"Input": {"Slag": 4.1, "Power": 60}, "Outputs": {"Copper": 0.416, "Lead": 0.25, "Graphite": 0.166,
+                                                                                  "Titanium": 0.166}, "Time": 7/12}),
         "Disassembler": Production("Disassembler",
-                                   {"Input": {"Slag": 7.2, "Scrap": 1, "Power": 240}, "Outputs": {"Sand": 0.4, "Graphite": 0.2, "Titanium": 0.2, "Thorium": 0.2}, "Time": 0}),
+                                   {"Input": {"Slag": 7.2, "Scrap": 1, "Power": 240}, "Outputs": {"Sand": 0.4, "Graphite": 0.2, "Titanium": 0.2,
+                                                                                                  "Thorium": 0.2}, "Time": 1/4}),
         "Spore press": Production("Spore press",
-                                  {"Input": {"Spore pod": 1, "Power": 42}, "Outputs": {"Oil": 18}, "Time": 0}),
+                                  {"Input": {"Spore pod": 1, "Power": 42}, "Outputs": {"Oil": 18}, "Time": 1/3}),
         "Pulverizer": Production("Pulverizer",
-                                 {"Input": {"Scrap": 1, "Power": 30}, "Outputs": {"Sand": 1}, "Time": 0}),
+                                 {"Input": {"Scrap": 1, "Power": 30}, "Outputs": {"Sand": 1}, "Time": 2/3}),
         "Coal centrifuge": Production("Coal centrifuge",
                                       {"Input": {"Oil": 6, "Power": 42}, "Outputs": {"Coal": 1}, "Time": 0.5})
     }
