@@ -381,7 +381,8 @@ def power_window(name):
             fuel_label = tk.Label(inputElements, image=images[list(ratios[0].keys())[0].lower()], bg="#202020", fg="#ffffff")
             fuel_label.grid(row=i, column=imageColumn, padx=5, pady=5)
             fuelButton = UiTools.standard_button(inputElements, i, imageColumn, images[list(ratios[0].keys())[0].lower()], "", 32, 32,
-                                                 command=lambda: materials_selection(list(ratios[0].keys())[0], ))
+                                                 command=lambda: materials_selection(list(ratios[0].keys())[0], )) # Grab the current value in
+            # ([row],2). That's generator count. Then multiply by items/sec, and feed to materials_selection().
 
             if selection.get_state() == "count":
                 # Power is input, Generators are calculated
