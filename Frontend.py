@@ -130,6 +130,12 @@ class UiTools:
         button.bind("<Enter>", UiTools.on_enter)
         button.bind("<Leave>", UiTools.on_leave)
 
+    @staticmethod
+    def standard_label(parent, row, col, colspan, text, image):
+        label = tk.Label(parent, text=text, image=image)
+        label.grid(row=row, column=col, columnspan=colspan, padx=5, pady=5)
+        label.configure(bg="#202020", fg="#ffffff")
+
 class BaseComponents:
     # A reusable base class for UI components using grid layout.
     def __init__(self, parent):
@@ -254,25 +260,46 @@ class ToggleButton(BaseComponents):
             highlightcolor="#fcd47c",
             bg="#202020",
             activebackground="#202020",
-            command=self.toggle)
-        self.command = command  # Optional function to call on toggle
+            command=self.toggle
+        )
+        self.command = command  # External function
+        self.group = None  # Will be set when added to a ToggleGroup
 
     def toggle(self):
-        # Swap state and image
+        """Toggles the button state and updates the image."""
         if self.state == self.state_off:
             self.state = self.state_on
             self.button.config(image=self.image_on)
+            if self.group:
+                self.group.update_exclusive(self)  # Notify group to turn other buttons off
         else:
             self.state = self.state_off
             self.button.config(image=self.image_off)
 
         # Call external function if provided
         if self.command:
-            self.command()
+            self.command(self.state)
 
     def get_state(self):
         """Returns the current state of the toggle button."""
         return self.state
+
+class ToggleGroup:
+    def __init__(self):
+        self.buttons = []
+
+    def add_button(self, button):
+        """Registers a ToggleButton and links it to this group."""
+        self.buttons.append(button)
+        button.group = self  # Assign the group reference
+
+    def update_exclusive(self, active_button):
+        """Ensure that only one button is 'on' at any time."""
+        # If a button is turned 'on', make sure all others are turned off.
+        for button in self.buttons:
+            if button is not active_button and button.state == button.state_on:
+                button.state = button.state_off  # Set 'off'
+                button.button.config(image=button.image_off)  # Update UI
 
 def reformat_entry(text):
     text = text.lower()
@@ -338,21 +365,50 @@ def materials_selection():
 def turrets_window(name):
     UiTools.clear_full()
     block = get_block(name)
-    # Extract relevant information
-    text = (
-        f"Name: {block['name']}\n"
-        f"Reload Time: {block.get('reloadTime', 'N/A')}\n"
-        f"Burst: {block.get('burst', 'N/A')}\n"
-        f"Ammo Types: {block.get('ammoTypes', 'N/A')}\n"
-        f"Coolant: {block.get('coolant', 'N/A')}\n"
-        f"Ammo Use: {block.get('ammoUse', 'N/A')}\n"
-        f"Power use while firing/reloading: {block.get('power', 'N/A')}\n"
-        f"Liquid Ammo: {block.get('liquidAmmo', 'N/A')}"
-    )
-    turret = tk.Label(root, text=text)
-    turret.grid(row=2, column=0, columnspan=4, padx=5, pady=5)
-    turret.configure(bg="#202020", fg="#ffffff")
-    UiTools.back_button(root, 3, 4, lambda: turret_selection())
+    UiTools.standard_label(root, 0, 0, 2, name, None)
+    UiTools.standard_label(root, 0, 2, 1, None, images[name.lower()])
+    UiTools.standard_label(root, 1, 0, 1, "How many guns?", None)
+    gunCount = FancySpinbox(root, 1, 1, 2, 1, 1000, 4)
+    UiTools.hline(2)
+    coolants = []
+    coolantGroup = ToggleGroup()
+    if "Water" in block.get('coolant'):
+        coolants.append("Water")
+    if "Cryofluid" in block.get('coolant'):
+        coolants.append("Cryofluid")
+    UiTools.standard_label(root, 3, 0, 1, "Coolant:", None)
+    if "Water" in coolants:
+        coolantWater = ToggleButton(root, images["water toggle"], images["water"], "water", "none")
+        coolantGroup.add_button(coolantWater)
+        coolantWater.grid(row=3, column=1, padx=5, pady=5)
+    else:
+        UiTools.standard_label(root, 3, 1, 1, None, images["water != coolant"])
+    if "Cryofluid" in coolants:
+        coolantCryo = ToggleButton(root, images["cryofluid toggle"], images["cryofluid"], "cryofluid", "none")
+        coolantGroup.add_button(coolantCryo)
+        coolantCryo.grid(row=3, column=2, padx=5, pady=5)
+    else:
+        UiTools.standard_label(root, 3, 2, 1, None, images["cryofluid != coolant"])
+    UiTools.hline(4)
+    outputFrame = tk.Frame(root, bg="#202020")
+    outputFrame.grid(row=5, column=0, columnspan=3)
+    if len(block.get('ammoTypes')):
+        UiTools.standard_label(outputFrame, 0, 0, 1, "Ammo type", None)
+        UiTools.standard_label(outputFrame, 0, 1, 1, "Feed rate", None)
+        for i, (ammo, modifiers) in enumerate(block.get('ammoTypes').items()):
+            def get_coolant_multiplier():
+                if coolantWater.get_state() == "water":
+                    return block.get('coolant')['Water']
+                elif coolantCryo.get_state() == "cryofluid":
+                    return block.get('coolant')['Cryofluid']
+                else:
+                    return 1
+            print(f"{block.get('reloadTime')}\n{block.get('ammoTypes')}\n{block.get('coolant')}\n{block.get('ammoUse')}\n{block.get('burst')}")
+            OperationLabel(outputFrame, i + 1, 0, gunCount, lambda x, burst=block.get('burst'), ammoUse=block.get('ammoUse'),
+                    coolantMulti=lambda: get_coolant_multiplier(), ammoMulti=modifiers[0], ammoCost=modifiers[1], reloadTime=block.get('reloadTime'):
+                    60 * x * burst * ammoUse * (coolantMulti + ammoMulti - 1) / (ammoCost * reloadTime), "")
+            UiTools.standard_label(outputFrame, i + 1, 0, 1, None, images[ammo.lower()])
+    UiTools.back_button(root, 6, 4, lambda: turret_selection())
 
 def power_window(name):
     def update_ui():
@@ -373,20 +429,30 @@ def power_window(name):
                 if row_spinvar is not var:
                     row_spinvar.set(new_value)
 
+        def handle_item_input(row):
+            column = 0 if selection.get_state() == "power" else 3  # Choose column dynamically
+
+            if row < len(spinbox_refs[column]):  # Ensure row index is valid
+                value = float(spinbox_refs[column][row].get())  # Get numeric value
+                if column:
+                    rate = value * list(ratios[0].values())[0] / ratios[2]
+                else:
+                    rate = value / ratios[1]['Power'] * list(ratios[0].values())[0] / ratios[2]
+                return rate
+            else:
+                print(f"Warning: No data found for row {row} in column 3.")
+
         # Iterate over all recipes and create UI elements dynamically
         for i, ratios in enumerate(recipes):
-            print(ratios)
-            print(list(ratios[0].keys())[0])
-            imageColumn = 1 if selection.get_state() == "count" else 2
-            fuel_label = tk.Label(inputElements, image=images[list(ratios[0].keys())[0].lower()], bg="#202020", fg="#ffffff")
-            fuel_label.grid(row=i, column=imageColumn, padx=5, pady=5)
+            imageColumn = 1 if selection.get_state() == "power" else 2
+            UiTools.standard_label(inputElements, i, imageColumn, 1, None, images[list(ratios[0].keys())[0].lower()])
             fuelButton = UiTools.standard_button(inputElements, i, imageColumn, images[list(ratios[0].keys())[0].lower()], "", 32, 32,
-                                                 command=lambda: materials_selection(list(ratios[0].keys())[0], ))
+                                                 command=lambda name=list(ratios[0].keys())[0], row=i: materials_window(name, handle_item_input(row)))
 
-            if selection.get_state() == "count":
+            if selection.get_state() == "power":
                 # Power is input, Generators are calculated
                 column = 0
-                inputSpinbox = FancySpinbox(inputElements, i, column, width=4)
+                inputSpinbox = FancySpinbox(inputElements, i, column, minVal=0, maxVal=1000*ratios[1]['Power'], width=4)
                 spinVar = inputSpinbox.spinboxVar
                 spinVar.trace_add("write", lambda *args, var=spinVar: sync_spinboxes(var, column))
 
@@ -398,7 +464,7 @@ def power_window(name):
             else:
                 # Generators are input, Power is calculated
                 column = 3
-                inputSpinbox = FancySpinbox(inputElements, i, column, width=4)
+                inputSpinbox = FancySpinbox(inputElements, i, column, minVal=0.0, maxVal=1000, width=4)
                 spinVar = inputSpinbox.spinboxVar
                 spinVar.trace_add("write", lambda *args, var=spinVar: sync_spinboxes(var, column))
 
@@ -412,22 +478,12 @@ def power_window(name):
 
     UiTools.clear_full()
     block = get_block(name)
-    windowTitle = tk.Label(root, text=block['name'])
-    windowTitle.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
-    windowTitle.configure(bg="#202020", fg="#ffffff")
-    windowImage = tk.Label(root, image=images[reformat_entry(name)])
-    windowImage.grid(row=0, column=2, padx=5, pady=5)
-    windowImage.configure(bg="#202020")
-    inputSelection = tk.Label(root, text="Select input method:")
-    inputSelection.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
-    inputSelection.configure(bg="#202020", fg="#ffffff")
-    leftText = tk.Label(root, text="Power output")
-    leftText.grid(row=2, column=0, padx=5, pady=5)
-    leftText.configure(bg="#202020", fg="#ffffff")
-    rightText = tk.Label(root, text="Generator count")
-    rightText.grid(row=2, column=2, padx=5, pady=5)
-    rightText.configure(bg="#202020", fg="#ffffff")
-    selection = ToggleButton(root, images['left toggle'], images['right toggle'], "count", "power", command=lambda: update_ui())
+    UiTools.standard_label(root, 0, 0, 2, block['name'], None)
+    UiTools.standard_label(root, 0, 2, 1, None, images[reformat_entry(name)])
+    UiTools.standard_label(root, 1, 0, 3, "Select input method:", None)
+    UiTools.standard_label(root, 2, 0, 1, "Power output", None)
+    UiTools.standard_label(root, 2, 2, 1, "Generator count", None)
+    selection = ToggleButton(root, images['left toggle'], images['right toggle'], "power", "count", command=lambda: update_ui())
     selection.grid(row=2, column=1, padx=5, pady=5)
     recipes = []
     # This might not be needed in the future
@@ -437,26 +493,20 @@ def power_window(name):
             recipes.append(tempList)
     else:
         recipes.append(list(block['recipes'].values()))
+    UiTools.hline(3)
 
-    inputElements = tk.Label(root)
-    inputElements.grid(row=3, column=0, columnspan=3)
-    inputElements.configure(bg="#202020", fg="#ffffff")
+    inputElements = tk.Frame(root, bg="#202020")
+    inputElements.grid(row=4, column=0, columnspan=3)
 
     update_ui()
-    UiTools.back_button(root, 4, 4, lambda: power_selection())
+    UiTools.back_button(root, 5, 4, lambda: power_selection())
 
 def units_window(name):
     UiTools.clear_full()
     unit = units.get(name)
-    windowTitle = tk.Label(root, text=unit.name)
-    windowTitle.grid(row=0, column=0, padx=5, pady=5)
-    windowTitle.configure(bg="#202020", fg="#ffffff")
-    windowImage = tk.Label(root, image=images[unit.name.lower()])
-    windowImage.grid(row=0, column=1, padx=5, pady=5)
-    windowImage.configure(bg="#202020")
-    entryPrompt = tk.Label(root, text="How many to\nproduce/min:")
-    entryPrompt.grid(row=1, column=0, padx=5, pady=5)
-    entryPrompt.configure(bg="#202020", fg="#ffffff")
+    UiTools.standard_label(root, 0, 0, 1, unit.name, None)
+    UiTools.standard_label(root, 0, 1, 1, None, images[unit.name.lower()])
+    UiTools.standard_label(root, 1, 0, 1, 'How many to\nproduce/min?', None)
     entrySpinBox = FancySpinbox(root,1,1,minVal=1,maxVal=1000)
     UiTools.hline(2)
     for i, (key, value) in enumerate(unit_math(name).items()):
@@ -470,18 +520,27 @@ def units_window(name):
 def materials_window(name, rate=0.0):
     UiTools.clear_full()
     producers = find_producers(name)
-    windowTitle = tk.Label(root, text=name, image=images[name.lower()], compound="right")
-    windowTitle.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
-    windowTitle.configure(bg="#202020", fg="#ffffff")
-    entryPrompt = tk.Label(root, text="How much to\nmake/sec:")
-    entryPrompt.grid(row=1, column=0, padx=5, pady=5)
-    entryPrompt.configure(bg="#202020", fg="#ffffff")
-    entrySpinBox = FancySpinbox(root,1,1, minVal=1.0,maxVal=10000.0, width=6)
+    UiTools.standard_label(root, 0, 0, 1, name, None)
+    UiTools.standard_label(root, 0, 1, 1, None, images[name.lower()])
+    UiTools.standard_label(root, 1, 0, 1, "How much to\nmake/sec?", None)
+
+    # Always create the spinbox, but only show it when rate == 0
+    entrySpinBox = FancySpinbox(root, 1, 1, minVal=0.0, maxVal=10000.0, width=6)
+    entrySpinBox.grid(row=1, column=1, padx=5, pady=5)
     entrySpinBox.set_value(rate)
-    tk.Label(root, text=rate, bg='#202020', fg="#ffffff").grid(row=1, column=1, padx=5, pady=5)
+
+    # Create label to display fixed rate if provided
+    rateLabel = tk.Label(root, text=round(rate,2), bg='#202020', fg="#ffffff")
+
+    if rate:
+        rateLabel.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
+
     UiTools.hline(2)
+
+    # Producer Selection UI
     selectionFrame = tk.Frame(root, bg="#202020")
     selectionFrame.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
     for i, producer in enumerate(producers):
         producer = get_block(producer)
         if "recipes" in producer:
@@ -491,10 +550,12 @@ def materials_window(name, rate=0.0):
             producerAmount = tk.Frame(selectionFrame, bg="#202020")
             producerAmount.grid(row=i, column=1, columnspan=2, padx=5, pady=5)
             drillSpeed = 60 / (producer["base_time"] * (producer["A"] + producer["B"] * drillables[name]))
-            OperationLabel(producerAmount, 0, 0, entrySpinBox, lambda x, value=drillSpeed: math.ceil(x / value),"Tiles to cover:")
+            OperationLabel(producerAmount, 0, 0, entrySpinBox, lambda x, value=drillSpeed: math.ceil(x / value), "Tiles to cover:")
             OperationLabel(producerAmount, 1, 0, entrySpinBox, lambda x, value=producer["size"] ** 2 * drillSpeed: x / value,
                            "Minimum number of drills:")
-        UiTools.standard_button(selectionFrame, i, 0, images[reformat_entry(producer["name"])], "", 32, 32,)
+
+        UiTools.standard_button(selectionFrame, i, 0, images[reformat_entry(producer["name"])], "", 32, 32, )
+
     UiTools.back_button(root, 4 + len(producers), 4, lambda: materials_selection())
 
 #%% Image manipulation - Explanation
@@ -506,6 +567,10 @@ def materials_window(name, rate=0.0):
 images = {
     "left toggle": tk.PhotoImage(file="Images/left.png"),
     "right toggle": tk.PhotoImage(file="Images/right.png"),
+    "water toggle": tk.PhotoImage(file="Images/Items/water-toggle.png"),
+    "cryofluid toggle": tk.PhotoImage(file="Images/Items/cryofluid-toggle.png"),
+    "water != coolant": tk.PhotoImage(file="Images/Items/no-water.png"),
+    "cryofluid != coolant": tk.PhotoImage(file="Images/Items/no-cryofluid.png"),
     "bullets": tk.PhotoImage(file="Images/turret.png"),
     "power": tk.PhotoImage(file="Images/power.png"),
     "unitsIcon": tk.PhotoImage(file="Images/units.png"),
@@ -572,7 +637,7 @@ images = {
     "navanax": tk.PhotoImage(file="Images/Units/Navanax.png"),
     "copper": tk.PhotoImage(file="Images/Items/item-copper.png"),
     "lead": tk.PhotoImage(file="Images/Items/item-lead.png"),
-    "glass": tk.PhotoImage(file="Images/Items/item-metaglass.png"),
+    "metaglass": tk.PhotoImage(file="Images/Items/item-metaglass.png"),
     "graphite": tk.PhotoImage(file="Images/Items/item-graphite.png"),
     "sand": tk.PhotoImage(file="Images/Items/item-sand.png"),
     "coal": tk.PhotoImage(file="Images/Items/item-coal.png"),
@@ -693,7 +758,7 @@ unitsMenuButtons = [
 materialsMenuButtons = [
     ("Copper", images["copper"], lambda: materials_window("Copper")),
     ("Lead", images["lead"], lambda: materials_window("Lead")),
-    ("Glass", images["glass"], lambda: materials_window("Metaglass")),
+    ("Glass", images["metaglass"], lambda: materials_window("Metaglass")),
     ("Graphite", images["graphite"], lambda: materials_window("Graphite")),
     ("Sand", images["sand"], lambda: materials_window("Sand")),
     ("Coal", images["coal"], lambda: materials_window("Coal")),
