@@ -3,7 +3,7 @@ class Block:
         self.name = name
 
 class Turret(Block):
-    def __init__(self, name, reloadTime=0, burst=1, ammoTypes=None, coolant=None, ammoUse=1, power=0, liquidAmmo=None):
+    def __init__(self, name, reloadTime=0, burst=1, ammoTypes=None, coolant=None, ammoUse=1, power=0, liquidAmmo=None, consumptionRate=None):
         super().__init__(name)
         self.reloadTime = reloadTime  # How long between shots (frames, 60 fps). Int.
         self.burst = burst  # How many bullets fired at once. Int.
@@ -11,8 +11,9 @@ class Turret(Block):
         # ammo per item inputted). Dict{Str:List[Float,Int]}.
         self.coolant = coolant if coolant else {}  # Effects of coolants on fire rate and consumption rate. Dict:{Str:List[Float,Float]}.
         self.ammoUse = ammoUse  # How much ammo used per shot. Int.
-        self.power = power # Power consumption, while firing/reloading (/sec)
+        self.power = power # Power consumption, while firing/reloading (/sec). Float.
         self.liquidAmmo = liquidAmmo if liquidAmmo else []  # Liquid ammo types and consumption rate. List:[Str]. Fire rate is 60*burst/reloadTime.
+        self.consumptionRate = consumptionRate # Rate of liquid consumption. Only applicable to turrets with liquidAmmo. Float.
 
 class Drill(Block):
     def __init__(self, name, tier, base_time, A, B, boost=None, size=2):
@@ -79,7 +80,8 @@ blocks = {
         "Wave": Turret("Wave",
                        3,
                        1,
-                       liquidAmmo=["Water", "Cryofluid", "Oil", "Slag"]),
+                       liquidAmmo=["Water", "Cryofluid", "Oil", "Slag"],
+                       consumptionRate=20),
         "Lancer": Turret("Lancer",
                          80,
                          1,
@@ -109,7 +111,8 @@ blocks = {
         "Tsunami": Turret("Tsunami",
                           3,
                           2,
-                          liquidAmmo=["Water", "Cryofluid", "Oil", "Slag"]),
+                          liquidAmmo=["Water", "Cryofluid", "Oil", "Slag"],
+                          consumptionRate=50),
         "Fuse": Turret("Fuse",
                        35,
                        3,
