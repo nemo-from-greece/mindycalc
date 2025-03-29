@@ -23,10 +23,9 @@ from Ratios import units, drillables, blocks
 root = tk.Tk()
 root.title("Serpulo Ratio Calculator")
 root.configure(bg="#202020")
-custom_font = font.Font(family="fontello", size=11)  # In theory, should make tkinter use mindustry font.
+custom_font = font.Font(family="fontello", size=11)
 root.option_add("*Font", custom_font)
 
-# Simple routines used at all levels of the UI
 class UiTools:
     def __init__(self, uiToolsRoot, main_menu_command):
         self.root = uiToolsRoot
@@ -327,7 +326,6 @@ def reformat_entry(text):
             text = textPieces[i]
     return text
 
-# Main selection menu for Serpulo
 def main_menu():
     UiTools.reset_grid()
     frame = tk.Frame(root)
@@ -336,7 +334,6 @@ def main_menu():
     for idx, (image, text, command) in enumerate(mainMenuButtons):
         UiTools.standard_button(frame, 0, idx, image, text, 50, 90, command)
 
-# Serpulo turret selection menu
 def turret_selection():
     UiTools.reset_grid()
     frame = tk.Frame(root)
@@ -346,7 +343,6 @@ def turret_selection():
         UiTools.standard_button(frame, idx // 4, idx % 4, image, text, 50, 100, command)
     UiTools.back_button(root, 3, 4, lambda: main_menu())
 
-# Serpulo power selection menu
 def power_selection():
     UiTools.reset_grid()
     frame = tk.Frame(root)
@@ -358,7 +354,6 @@ def power_selection():
         UiTools.standard_button(frame, idx // 3, idx % 3, image, text1, 65, 90, lambda name=text: power_window(name))
     UiTools.back_button(root, 3, 4, lambda: main_menu())
 
-# Serpulo unit selection menu
 def units_selection():
     UiTools.reset_grid()
     frame = tk.Frame(root)
@@ -368,7 +363,6 @@ def units_selection():
         UiTools.standard_button(frame, idx % 5, idx // 5, image, text, 50, 90, command)
     UiTools.back_button(root, 3, 4, lambda: main_menu())
 
-# Serpulo material selection menu
 def materials_selection():
     UiTools.reset_grid()
     frame = tk.Frame(root)
