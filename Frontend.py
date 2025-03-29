@@ -6,8 +6,6 @@ from tkinter import font
 from Logic import get_block, find_producers, unit_math
 from Ratios import units, drillables, blocks
 
-#%% TODO, 0.2A:
-# Make logic
 #%% TODO, 0.3A:
 # Implement recursive production finding
 # Make buttons for ^^^
