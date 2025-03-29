@@ -238,7 +238,7 @@ blocks = {
         "Thorium reactor": Production("Thorium reactor",
                                       {"Input": {"Thorium": 1, "Cryofluid": 2.4}, "Outputs": {"Power": 900}, "Time": 6}),
         "Impact reactor": Production("Impact reactor",
-                                     {"Input": {"Blast compound": 1, "Cryofluid": 15, "Power": 1500}, "Outputs": {"Power": 7800}, "Time": 13/6}),
+                                     {"Input": {"Blast compound": 1, "Cryofluid": 15, "Power": 1500}, "Outputs": {"Power": 7800}, "Time": 14/6}),
         "Graphite press": Production("Graphite press",
                                      {"Input": {"Coal": 2}, "Outputs": {"Graphite": 1}, "Time": 1.5}),
         "Multi press": Production("Multi press",
@@ -326,3 +326,5 @@ drillables = {
     "Titanium": 3,
     "Thorium": 4
 }
+
+liquids = ['Water', 'Oil', 'Slag', 'Cryofluid']

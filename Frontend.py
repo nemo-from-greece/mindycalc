@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import font
 
 from Logic import get_block, find_producers, unit_math
-from Ratios import units, drillables, blocks
+from Ratios import units, drillables, blocks, liquids
 
 #%% TODO, 0.3A:
 # Implement recursive production finding
@@ -482,7 +482,8 @@ def power_window(name):
                 if column:
                     rate = value * list(ratios[0].values())[0] / ratios[2]
                 else:
-                    rate = value / ratios[1]['Power'] * list(ratios[0].values())[0] / ratios[2]
+                    rate = (math.ceil(value / (ratios[1]['Power'] - ratios[0]['Power'] if ratios[0]['Power'] else 0)) * list(ratios[0].values())[0]
+                            / ratios[2])
                 return rate
 
         # Iterate over all recipes and create UI elements dynamically
@@ -599,8 +600,8 @@ def materials_window(name, rate=0.0):
         productionRate = None
         if "recipes" in producer:
             for recipe in producer["recipes"]:
-                if name in recipe["Outputs"].keys():
-                    productionRate = recipe["Outputs"][name] / recipe["Time"]
+                if name in recipe["Outputs"].keys() and name in liquids:
+                    productionRate = recipe["Outputs"][name]
                     break
                 elif name in recipe["Outputs"].keys():
                     productionRate = recipe["Outputs"][name] / recipe["Time"]
@@ -642,7 +643,7 @@ def process_submenu(name, count):
                 if key in inputs:
                     pass
                 else:
-                    inputs[key] = value
+                    inputs[key] = value / recipe['Time'] if key.lower() != 'power' else value
         inputsFrame = tk.Frame(root, bg="#202020")
         inputsFrame.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
         if inputs != {}:
@@ -653,8 +654,7 @@ def process_submenu(name, count):
                     power_submenu(rate))
                 else:
                     UiTools.standard_label(inputsFrame, i, 1, 1, f"{value * count:.2f}", None)
-                    UiTools.standard_button(inputsFrame, i, 0, images[key.lower()], None, 32, 32, lambda name=key, rate=count * value:
-                                                                                                                            materials_window(name, rate))
+                    UiTools.standard_button(inputsFrame, i, 0, images[key.lower()], None, 32, 32, lambda name=key, rate=count * value: materials_window(name, rate))
         else:
             UiTools.standard_label(root, 3, 0, 2, "No inputs required.", None)
     UiTools.back_button(root, 4, 4, lambda: materials_selection())
