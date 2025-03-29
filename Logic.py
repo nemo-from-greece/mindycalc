@@ -1,12 +1,10 @@
 from Ratios import units, blocks, drillables, Turret, Drill, Production, Factory, Reconstructor
-import math
 
 def get_block(name, default=None):
 	# Iterate through each category in the blocks dictionary
 	for category in blocks.values():
 		# Iterate through each block in the category
 		for blockName, blockData in category.items():
-
 			# Check if the block name matches
 			if blockName == name:
 				# Determine the block's class and return relevant information
@@ -21,6 +19,7 @@ def get_block(name, default=None):
 						"ammoUse": blockData.ammoUse,
 						"power": blockData.power,
 						"liquidAmmo": blockData.liquidAmmo,
+						"consumptionRate": blockData.consumptionRate,
 					}
 				elif isinstance(blockData, Drill):
 					return {
@@ -32,12 +31,13 @@ def get_block(name, default=None):
 						"B": blockData.B,
 						"boost": blockData.boost,
 						"size": blockData.size,
+						"power": blockData.power,
 					}
 				elif isinstance(blockData, Production):
 					return {
 						"type": "Production",
 						"name": blockData.name,
-						"recipes": blockData.recipes,
+						"recipes": blockData.recipes if isinstance(blockData.recipes, list) else [blockData.recipes],
 					}
 				elif isinstance(blockData, Factory):
 					return {

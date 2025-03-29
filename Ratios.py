@@ -16,7 +16,7 @@ class Turret(Block):
         self.consumptionRate = consumptionRate # Rate of liquid consumption. Only applicable to turrets with liquidAmmo. Float.
 
 class Drill(Block):
-    def __init__(self, name, tier, base_time, A, B, boost=None, size=2):
+    def __init__(self, name, tier, base_time, A, B, boost=None, size=2, power=0):
         super().__init__(name)
         self.tier = tier  # Drill tier
         self.base_time = base_time  # Base mining time (in frames)
@@ -24,6 +24,7 @@ class Drill(Block):
         self.B = B  # Constant B
         self.boost = boost if boost else {}  # Water consumption for boosting (/sec)
         self.size = size # Drill size
+        self.power = power
 
     def mining_speed(self, hardness):
         return 60 / (self.base_time * self.A + self.B * hardness)
@@ -148,8 +149,8 @@ blocks = {
     "drills": {
         "Mechanical drill": Drill("Mechanical drill", tier=2, base_time=600, A=1.000, B=0.088, boost={"Water": 3}, size=2),
         "Pneumatic drill": Drill("Pneumatic drill", tier=3, base_time=400, A=1.000, B=0.132, boost={"Water": 3.6}, size=2),
-        "Laser drill": Drill("Laser drill", tier=4, base_time=240, A=1.168, B=0.208, boost={"Water": 4.8}, size=3),
-        "Airblast drill": Drill("Airblast drill", tier=5, base_time=240, A=1.168, B=0.208, boost={"Water": 6}, size=4),
+        "Laser drill": Drill("Laser drill", tier=4, base_time=240, A=1.168, B=0.208, boost={"Water": 4.8}, size=3, power=66),
+        "Airblast drill": Drill("Airblast drill", tier=5, base_time=240, A=1.168, B=0.208, boost={"Water": 6}, size=4, power=180),
     },
     "unit factories": {
         "Ground factory": Factory("Ground factory", power=72, unit_recipes={
@@ -207,18 +208,18 @@ blocks = {
         "Mechanical pump": Production("Mechanical pump",
                                       [{"Input": {}, "Outputs": {"Water": 7}, "Time": 1},
                                               {"Input": {}, "Outputs": {"Cryofluid": 7}, "Time": 1},
-                                              {"Input": {}, "Outputs": {"Slag", 7}, "Time": 1},
-                                              {"Input": {}, "Outputs": {"Oil", 7}, "Time": 1}]),
+                                              {"Input": {}, "Outputs": {"Slag": 7}, "Time": 1},
+                                              {"Input": {}, "Outputs": {"Oil": 7}, "Time": 1}]),
         "Rotary pump": Production("Rotary pump",
                                   [{"Input": {"Power": 18}, "Outputs": {"Water": 48}, "Time": 1},
                                           {"Input": {"Power": 18}, "Outputs": {"Cryofluid": 48}, "Time": 1},
-                                          {"Input": {"Power": 18}, "Outputs": {"Slag", 48}, "Time": 1},
-                                          {"Input": {"Power": 18}, "Outputs": {"Oil", 48}, "Time": 1}]),
+                                          {"Input": {"Power": 18}, "Outputs": {"Slag": 48}, "Time": 1},
+                                          {"Input": {"Power": 18}, "Outputs": {"Oil": 48}, "Time": 1}]),
         "Impulse pump": Production("Impulse pump",
                                    [{"Input": {"Power": 78}, "Outputs": {"Water": 118.7}, "Time": 1},
                                            {"Input": {"Power": 78}, "Outputs": {"Cryofluid": 118.7}, "Time": 1},
-                                           {"Input": {"Power": 78}, "Outputs": {"Slag", 118.7}, "Time": 1},
-                                           {"Input": {"Power": 78}, "Outputs": {"Oil", 118.7}, "Time": 1}]),
+                                           {"Input": {"Power": 78}, "Outputs": {"Slag": 118.7}, "Time": 1},
+                                           {"Input": {"Power": 78}, "Outputs": {"Oil": 118.7}, "Time": 1}]),
         "Combustion generator": Production("Combustion generator",
                                            [{"Input": {"Coal": 1}, "Outputs": {"Power": 60}, "Time": 2},
                                                    {"Input": {"Spore pod": 1}, "Outputs": {"Power": round(60*1.15)}, "Time": 2},
@@ -276,7 +277,7 @@ blocks = {
         "Coal centrifuge": Production("Coal centrifuge",
                                       {"Input": {"Oil": 6, "Power": 42}, "Outputs": {"Coal": 1}, "Time": 0.5})
     }
-} # Done
+}
 
 units = {
     "Dagger": Unit("Dagger", 1, "Ground", "Orange"),
@@ -314,7 +315,7 @@ units = {
     "Cyerce": Unit("Cyerce", 3, "Naval", "Green"),
     "Aegires": Unit("Aegires", 4, "Naval", "Green"),
     "Navanax": Unit("Navanax", 5, "Naval", "Green")
-} # Done
+}
 
 drillables = {
     "Copper": 1,
@@ -324,4 +325,4 @@ drillables = {
     "Coal": 2,
     "Titanium": 3,
     "Thorium": 4
-} # Material: hardness
+}
