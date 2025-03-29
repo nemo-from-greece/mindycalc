@@ -5,7 +5,6 @@ def get_block(name, default=None):
 	for category in blocks.values():
 		# Iterate through each block in the category
 		for blockName, blockData in category.items():
-
 			# Check if the block name matches
 			if blockName == name:
 				# Determine the block's class and return relevant information
@@ -20,6 +19,7 @@ def get_block(name, default=None):
 						"ammoUse": blockData.ammoUse,
 						"power": blockData.power,
 						"liquidAmmo": blockData.liquidAmmo,
+						"consumptionRate": blockData.consumptionRate,
 					}
 				elif isinstance(blockData, Drill):
 					return {
@@ -30,12 +30,14 @@ def get_block(name, default=None):
 						"A": blockData.A,
 						"B": blockData.B,
 						"boost": blockData.boost,
+						"size": blockData.size,
+						"power": blockData.power,
 					}
 				elif isinstance(blockData, Production):
 					return {
 						"type": "Production",
 						"name": blockData.name,
-						"recipes": blockData.recipes,
+						"recipes": blockData.recipes if isinstance(blockData.recipes, list) else [blockData.recipes],
 					}
 				elif isinstance(blockData, Factory):
 					return {
@@ -62,23 +64,6 @@ def get_block(name, default=None):
 
 	# Return the default value if the block is not found
 	return default
-
-def get_unit(name):
-	# Iterate through the units dictionary
-	for unitName, unitData in units.items():
-		# Check if the unit name matches
-		if unitName == name:
-			# Return the unit data as a dictionary
-			unit_info = {
-				"name": unitData.name,
-				"tier": unitData.tier,
-				"type": unitData.unit_type,
-				"colour": unitData.colour,  # Include the colour attribute
-			}
-			# Add unit_type only for tier 1 units
-			if unitData.tier == 1:
-				unit_info["unit_type"] = unitData.unit_type
-			return unit_info
 
 def find_upgrade_path(unitName):
 	# Get the unit data
@@ -159,3 +144,45 @@ def find_producers(material):
 							break
 
 	return producers
+
+def unit_math(name):
+	unit = units.get(name)
+	factoryList = []
+	for i in range(unit.tier):
+		if unit.tier > 1:
+			factoryBlock = blocks.get("reconstructors", {})[find_upgrade_path(unit.name)["upgrades"]["reconstructor"]]
+		else:
+			factoryBlock = blocks.get("unit factories", {})[find_upgrade_path(unit.name)["produced_by"]]
+		factoryList.append(factoryBlock.name)
+		if unit.tier == 1:
+			break
+		unit = units.get(find_upgrade_path(unit.name)["upgrades"]["previous_unit"])
+	rates = {"Power": 0}
+	prodTime = 0
+	for i in range(len(factoryList)):
+		if "reconstructor" in factoryList[i].lower():
+			factory = blocks.get("reconstructors", {})[factoryList[i]]
+			dict1 = {
+				"Cost": factory.cost,
+				"Power": factory.power,
+				"Production time": factory.time
+			}
+		else:
+			factory = blocks.get("unit factories", {})[factoryList[i]]
+			dict1 = {
+				"Cost": factory.unit_recipes[unit.name]["Input"],
+				"Power": factory.power,
+				"Production time": factory.unit_recipes[unit.name]["time"]
+			}
+		for key, value in dict1["Cost"].items():
+			if key in rates:
+				rates[key] += value
+			else:
+				rates[key] = value
+		rates["Power"] += dict1["Power"]
+		prodTime = dict1["Production time"] if dict1["Production time"] > prodTime else prodTime
+	for key, value in rates.items():
+		if key != "Power" and key != "Cryofluid":
+			rates[key] = value/prodTime # Convert item requirements to items/sec
+	rates["Output"] = prodTime/60 # Units/min
+	return rates
