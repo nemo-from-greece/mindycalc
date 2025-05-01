@@ -1,5 +1,4 @@
-import math
-import weakref
+import math, weakref
 import tkinter as tk
 from tkinter import font
 
@@ -64,30 +63,6 @@ class UiTools:
     def on_leave(e):
         # Handles mouse leave event for button highlighting.
         e.widget['highlightbackground'] = "#202020"
-
-    def create_grid(self, button_texts, rows, cols, empty_cells=None):
-        # Creates a grid of buttons with specified empty cells and a back button.
-        empty_cells = empty_cells or []
-        frame = tk.Frame(self.root, bg="#202020")
-        frame.grid(row=2, column=0, columnspan=cols, padx=5, pady=5)
-
-        # Create grid buttons
-        for r in range(rows):
-            for c in range(cols):
-                if (r, c) in empty_cells:
-                    continue
-                btn = tk.Button(
-                    frame,
-                    text=button_texts[r][c],
-                    width=10, height=2,
-                    fg="#ffffff", bg="#404040",
-                    activebackground="#606060",
-                    borderwidth=1, relief="raised"
-                )
-                btn.grid(row=r, column=c, padx=5, pady=5)
-
-        # Back button configuration
-        self.back_button(self.root, rows, cols, self.main_menu_command)
 
     @staticmethod
     def back_button(parent, row, cols, command):
