@@ -4,3 +4,5 @@ Version 0.3A will come out sometime in Summer 2025, expanding on and completing 
 Similar tools can be found at https://zeeronis.github.io/Mindustry-Calc/ and https://mindustry-calc-a.onrender.com/. 
 
 Almost all images are taken from Mindustry and/or the [Unofficial Wiki](https://mindustry-unofficial.fandom.com/wiki/Mindustry_Unofficial_Wiki), and some have been modified by me.
+
+As of May 2025, all work on this project has ceased and moved to the [new version](https://github.com/nemo-from-greece/Mindycalc2). I felt that given the socpe of the modifications that have been brought to the project - swapping tkinter for customtkinter, adding support for Erekir and mixtech, complete rework of the project structure, etc. - I was going to end up rewriting everything anyways.
